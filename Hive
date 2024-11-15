@@ -1,0 +1,146 @@
+!apt-get update > /dev/null
+!apt-get install openjdk-8-jdk-headless -qq > /dev/null
+!wget -q https://downloads.apache.org/hadoop/common/hadoop-3.3.5/hadoop-3.3.5.tar.gz
+!tar -xzf hadoop-3.3.5.tar.gz
+!mv  hadoop-3.3.5/ /usr/local/
+
+import os
+os.environ["JAVA_HOME"]="/usr/lib/jvm/java-8-openjdk-amd64"
+os.environ["HADOOP_HOME"]="/usr/local/hadoop-3.3.5"
+
+current_path=os.getenv('PATH')
+new_path=current_path+'/usr/local/hadoop-3.3.6/bin'
+os.environ['PATH']=new_path
+!echo $PATH
+
+
+!wget -q https://downloads.apache.org/hive/hive-3.1.3/apache-hive-3.1.3-bin.tar.gz
+!tar xzf apache-hive-3.1.3-bin.tar.gz
+
+os.environ["HIVE_HOME"] = "/content/apache-hive-3.1.3-bin"
+!echo $HIVE_HOME
+
+!echo $PATH
+current_path = os.getenv('PATH')
+new_path = current_path+':/content/apache-hive-3.1.3-bin/bin'
+os.environ["PATH"] =  new_path
+!echo $PATH
+
+!echo $JAVA_HOME
+!echo $HADOOP_HOME
+!echo $HIVE_HOME
+
+!mv /content/apache-hive-3.1.3-bin/lib/log4j-slf4j-impl-2.17.1.jar ./
+
+!apt-get install openjdk-8-jdk-headless -qq > /dev/null
+
+!ls $HADOOP_HOME/share/hadoop/hdfs/lib/gu*
+
+!mv $HIVE_HOME/lib/guava-19.0.jar ./
+
+!cp $HADOOP_HOME/share/hadoop/hdfs/lib/guava-27.0-jre.jar $HIVE_HOME/lib/
+
+!pip -q install colab-xterm
+%load_ext colabxterm
+
+%xterm
+
+!schematool -initSchema -dbType derby
+
+!hive -e "\
+create database  if not exists assignment;\
+"
+
+!hive -database assignment -e "\
+drop table employee ;\
+create table if not exists employee(\
+id int ,name varchar(200) , salary int,dept_id int)\
+row format delimited fields terminated by ',';\
+"
+
+!hive -database assignment -e "\
+describe employee;\
+"
+
+!head '/content/drive/MyDrive/mod_emp.csv'
+
+!sed  's/\r//'  /content/drive/MyDrive/mod_emp.csv > mod.csv
+
+!head mod.csv
+
+!sed -i -e "1d" mod.csv
+
+!hive -S -database assignment -e"\
+truncate table employee;\
+load data local inpath 'mod.csv' into table employee ;\
+"
+
+!hive -S -database assignment -e"\
+select * from employee;\
+"
+
+!hive -S -database assignment -e "\
+select name , salary from employee \
+order by salary desc \
+limit 5 ;\
+"
+
+!hive -S -database assignment -e"\
+select avg(salary) as average_salary  from employee;\
+"
+
+!hive -S -database assignment -e "\
+select name , salary from employee where salary > 50000 ;\
+"
+
+!hive -S -database assignment -e "\
+drop table department;\
+create table department(dep_id int , dept_name varchar(200));\
+"
+
+!hive -S -database assignment -e "\
+insert into department values(1,'marketing'),(2,'finance'),(3,'HR'),(4,'IT');\
+"
+
+!hive -S -database assignment -e "\
+select * from department ;\
+"
+
+!hive -S -database assignment -e "\
+select e.id , e.name ,e.salary , e.dept_id , d.dept_name \
+from employee as e left join department as d \
+on e.dept_id = d.dep_id ;\
+"
+
+!hive -database assignment -e "\
+drop table main_records ;\
+create table if not exists main_records(\
+id int ,name varchar(200) , salary int,dept_id int)\
+partitioned by (dept_name varchar(200))\
+row format delimited fields terminated by ',';\
+"
+
+!head '/content/drive/MyDrive/mod_emp_dep.csv'
+
+!sed 's/\r//' /content/drive/MyDrive/mod_emp_dep.csv > final_data.csv
+
+
+
+
+
+!hive -S -database assignment "\
+truncate table main_records;\
+load data local inpath 'final_data.csv' into table main_records ;\
+"
+
+!hive -S -database assignment -e "\
+select dept_name , sum(salary) as total_salary \
+from main_records group by dept_name ;\
+"
+
+!hive -S -database assignment -e "\
+select dept_name , avg(salary) as average_salary from main_records \
+group by dept_name \
+order by average_salary desc \
+limit 1 ;\
+"
