@@ -1,0 +1,101 @@
+!apt-get install openjdk-8-jdk-headless -qq > /dev/null
+!wget -q http://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz
+!tar xf spark-3.1.1-bin-hadoop3.2.tgz
+!pip install findspark
+
+import os
+os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-8-openjdk-amd64"
+os.environ["SPARK_HOME"] = "/content/spark-3.1.1-bin-hadoop3.2"
+
+!conda install -c conda-forge findspark
+
+import findspark
+findspark.init()
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.master("local[*]").getOrCreate()
+spark.conf.set("spark.sql.repl.eagerEval.enabled", True) # Property used to format output tables better
+spark
+
+import pandas as pd
+import pyspark
+
+from pyspark.sql import SparkSession
+
+from pyspark.sql import SparkSession
+spark = SparkSession.builder\
+        .master("local[*]")\
+        .appName('PySpark_training')\
+        .getOrCreate()
+
+spark=SparkSession.builder.getOrCreate()
+sc=spark.sparkContext
+
+from google.colab import drive
+drive.mount('/content/drive')
+# initialize spark session
+spark = SparkSession.builder\
+  .getOrCreate()
+
+file_path = '/content/drive/MyDrive/Colab Notebooks/departuredelays.csv'
+
+df = spark.read.csv(file_path, header=True, sep=",")
+
+from pyspark.sql.types import *
+labels = [
+     ('date',StringType()),
+     ('delay',IntegerType()),
+     ('distance',IntegerType()),
+     ('origin',StringType()),
+     ('destination',StringType())
+]
+
+df.show(truncate=False)
+
+df.dtypes
+
+df.printSchema()
+
+df.describe()
+
+flights = df.filter(df.origin == 'JFK')
+flights.show()
+
+# select 3 major ones in New York
+from pyspark.sql.functions import*
+ny= df.filter(df['origin'].isin(['LGA','JFK','EWR']))
+major_3_ny = ny.groupBy("origin").agg(count("origin").alias("NO_OF_FLIGHTS"))
+major_3_ny.show()
+
+# select airport with most flights
+df.groupBy('origin').count().orderBy('count',ascending=False).show()
+
+# Print average delay for each airport
+from pyspark.sql.functions import *
+df.groupBy("origin").agg(avg("delay").alias("avg_delay"))
+
+# Ranking of average delays, with origin in LGA, JFK and EWR airports, partitioned by destination airport.
+ny= df.filter(df['origin'].isin(['LGA','JFK','EWR']))
+count_by_origin = ny.groupBy("origin","destination").agg(avg("delay").alias("AVG_DELAY")).orderBy("AVG_DELAY",ascending=False ).show()
+
+fil = df.filter(df.origin =='ATL' )
+fil.show()
+
+#  Perform Data Aggregation
+aggregated_data = df.groupBy('origin').agg(
+    sum('distance').alias('total_distance'),
+    avg('distance').alias('average_distance'),
+    max('distance').alias('longest_distance'),
+    min('distance').alias('shortest_distance')
+)
+
+aggregated_data.show()
+
+# Sort 10 records as per the origin LGA
+sorted_lga_records = df.filter(df['origin'] == 'LGA').orderBy('origin').limit(10)
+
+sorted_lga_records.show()
+
+# Create a new column based on the existing columns with the help of “withcolumn
+flights_df = df.withColumn('total_distance', col('distance'))
+flights_df.show()
+
