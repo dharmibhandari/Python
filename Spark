@@ -1,0 +1,146 @@
+!apt-get install openjdk-8-jdk-headless -qq > /dev/null
+
+!wget -q http://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1-bin-hadoop3.2.tgz
+
+!tar xf spark-3.1.1-bin-hadoop3.2.tgz
+
+!pip install findspark
+
+import os
+os.environ["JAVA_HOME"]="/usr/lib/jvm/java-8-openjdk-amd64"
+os.environ["SPARK_HOME"]="/content/spark-3.1.1-bin-hadoop3.2"
+
+!ls
+
+import findspark
+findspark.init()
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.master("local[*]").getOrCreate()
+spark.conf.set("spark.sql.repl.eagerEval.enabled", True) # Property used to format output tables better
+spark
+
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.getOrCreate()
+sc= spark.sparkContext
+
+file_path = '/content/drive/MyDrive/sales.csv'
+
+df = spark.read.csv(file_path,sep=",",header=True,inferSchema=True)
+
+df.printSchema()
+
+df.show(5)
+
+from pyspark.sql.functions import *
+from pyspark.sql.window import Window
+
+windowSpec = Window.partitionBy(col("customer_id"))
+total_sales_per_customer = df.withColumn("total_sales", sum("sales_amount").over(windowSpec))
+
+
+total_sales_per_customer
+
+from pyspark.sql.functions import *
+from pyspark.sql.window import Window
+
+total_sales_per_customer_group = df.groupBy("customer_id").agg(sum("sales_amount").alias("total_sales"))
+
+
+
+total_sales_per_customer_group.show(5)
+
+Rank of customers based on their total sales amount
+
+#Rank of customers based on their total sales amount
+total_sales_per_customer_group.createOrReplaceTempView("group_data")
+spark.sql("with rank as (\
+          select * ,\
+          row_number() over( order by round(total_sales,2) desc) as RN  from group_data\
+          ) \
+          select * from rank ;")
+
+
+
+#Moving average of sales amount over a rolling window of 3 months.
+df.createOrReplaceTempView("view")
+spark.sql("select month(transaction_date) , transaction_date  from view")
+
+
+
+#Moving average of sales amount over a rolling window of 3 months.
+spark.sql("""
+WITH cte AS (
+  SELECT month(transaction_date) AS month, ROUND(SUM(sales_amount), 2) AS total_sales
+  FROM view
+  GROUP BY month
+  ORDER BY month ASC
+),
+cte2 AS (
+  SELECT month, total_sales, AVG(total_sales) OVER (ORDER BY month ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS moving_average
+  FROM cte
+)
+SELECT * FROM cte2;
+""")
+
+
+
+def comm_calculater(a,b):
+  amt = a*b
+  return amt
+
+from pyspark.sql.types import *
+from pyspark.sql.functions import udf
+commision = udf(comm_calculater,DoubleType())
+
+df.withColumn("commision",commision("sales_amount","commission_rate"))
+
+ #Load a large dataset into a PySpark DataFrame.
+ hotel = spark.read.csv('/content/drive/MyDrive/hotel.csv',sep=',',header=True)
+
+hotel.count()
+
+hotel.show()
+
+ Use caching or persistence to optimize the performance of DataFrame operations.
+ Compare the execution time before and after applying caching or persistence.
+
+
+
+import time
+from pyspark.storagelevel import StorageLevel
+# befor cache and presist
+start_time = time.time()
+before_df = hotel.filter(hotel.lead_time > 10)
+end_time = time.time()
+execution_time_orignal = end_time - start_time
+
+
+# Cache the DataFrame (if you expect to reuse it multiple times)
+hotel.cache()
+start_time_with_cache = time.time()
+df1_with_cache = hotel.filter(hotel.lead_time > 10)
+end_time_with_cache = time.time()
+execution_time_with_cache = end_time_with_cache - start_time_with_cache
+
+#persist
+hotel.persist(StorageLevel.DISK_ONLY)
+start_time_with_persistence = time.time()
+df1_with_persistence = hotel.filter(hotel.lead_time > 10)
+end_time_with_persistence = time.time()
+execution_time_with_persistence = end_time_with_persistence - start_time_with_persistence
+
+
+print("Execution time without caching:", execution_time_orignal, "seconds")
+print("Execution time with caching:", execution_time_with_cache, "seconds")
+print("Execution time with disk-only persistence:", execution_time_with_persistence, "seconds")
+
+
+# Unpersist if you no longer need the DataFrame to free up resources
+df.unpersist()
+
+print( spark.version)
+
+
+
+ 
