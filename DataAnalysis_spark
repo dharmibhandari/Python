@@ -1,0 +1,119 @@
+<a href="https://colab.research.google.com/github/AndreBluhm/Project_Cleaning-Exploring-BigData-PySpark/blob/main/Data_Analysis_PySpark.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+
+# Install Java
+!apt-get install openjdk-8-jdk-headless -qq > /dev/null
+
+# Download and install Spark
+!wget -q https://downloads.apache.org/spark/spark-3.0.3/spark-3.0.3-bin-hadoop3.2.tgz  
+!tar xf spark-3.0.3-bin-hadoop3.2.tgz
+!pip install -q findspark
+
+import os
+os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-8-openjdk-amd64"
+os.environ["SPARK_HOME"] = "/content/spark-3.0.3-bin-hadoop3.2"
+import findspark
+findspark.init()
+from google.colab import files
+from pyspark.sql import SparkSession, Window
+from pyspark.sql.functions import isnan, when, count, col, lit, trim, avg, ceil
+from pyspark.sql.types import StringType
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+
+# Import open Source Data from AWS
+!wget https://s3.amazonaws.com/drivendata/data/7/public/4910797b-ee55-40a7-8668-10efd5c1b960.csv -O features.csv
+!wget https://s3.amazonaws.com/drivendata/data/7/public/0bf8bc6e-30d0-4c50-956a-603fc693d966.csv -O labels.csv
+
+# Check files
+!ls
+
+# Run spark on local cores
+sc = SparkSession.builder.master("local[*]").getOrCreate()
+
+# Read files with Spark
+feature = sc.read.csv("features.csv", inferSchema=True,header=True)
+label = sc.read.csv("labels.csv", inferSchema=True,header=True)
+
+print(feature.count())
+print(label.count())
+print(feature.columns)
+print(label.columns) 
+
+# Join data based on ID
+data = feature.join(label, on=("id"))
+print(data.count())
+print(data.columns)
+print(data.printSchema())
+print(data.show())
+
+# Convert codes (integer) into string
+data = data.withColumn("region_code", col("region_code").cast(StringType()))
+data = data.withColumn("district_code", col("region_code").cast(StringType()))
+print(data.printSchema())
+print(data.show())
+
+# Remove potential dublicates
+data = data.dropDuplicates(["id"])
+data.count()
+
+# Remove whitepsaces
+str_cols = [item[0] for item in data.dtypes if item[1].startswith("string")]
+for cols in str_cols:
+    data = data.withColumn(cols, trim(data[cols]))
+
+print(str_cols)
+
+# Remove columns with Null values and higher then a threshold
+agg_row = data.select([(count(when(isnan(c) | col(c).isNull(), c))/data.count()).alias(c) for c in data.columns if c not in {"date_recorded", "public_meeting", "permit"}]).collect()
+
+agg_dict_list = [row.asDict() for row in agg_row]
+agg_dict = agg_dict_list[0]
+
+col_null = list({i for i in agg_dict if agg_dict[i] > 0.4})
+print(agg_dict)
+print(col_null)
+data = data. drop(*col_null)
+
+# Group, aggregate and create pivote tables
+data.groupBy("recorded_by").count().show()
+
+data.groupBy("water_quality").count().orderBy("count", ascending=False).show()
+
+data = data.drop("recorded_by")
+
+data.groupBy("status_group").pivot("region").sum("amount_tsh").show()
+
+# Rename categories and impute missing numeric values
+print(str_cols)
+
+for column in str_cols[:2]:
+  print(data.groupBy(column).count().orderBy("count", ascending=False).show())
+  values_cat = data.groupBy(column).count().collect()
+  lessthan =[x[0] for x in values_cat if x[1] < 1000]
+  data = data.withColumn(column, when(col(column).isin(lessthan), "Others").otherwise(col(column)))
+  data.groupBy(column).count().orderBy("count", ascending=False).show() 
+
+data.groupBy("population").count().orderBy("population").show()
+
+data = data.withColumn("population", when(col("population") < 2, lit(None)).otherwise(col("population")))
+w = Window.partitionBy(data["district_code"])
+data = data.withColumn("population", when(col("population").isNull(), avg(data["population"]).over(w)).otherwise(col("population")))
+data = data.withColumn("population", ceil(data["population"]))
+data.groupBy("population").count().orderBy("population").show()
+
+# Visualization
+color_status = {"functional": "green",
+                "non functional": "red",
+                "functional needs repair": "blue"}
+
+cols = ["status_group", "payment_type", "longitude", "latitude", "gps_height"]
+df = data.select(cols).toPandas()
+
+fig, ax = plt.subplots(figsize=(12,8))
+sns.countplot(x="payment_type", hue="status_group", data=df, ax=ax, palette=color_status)
+plt.xticks(rotation=45)
+
+fig, ax = plt.subplots(figsize=(12,8))
+sns.scatterplot(x="longitude", y="latitude", data=df, hue="status_group", ax=ax, palette=color_status)
+
