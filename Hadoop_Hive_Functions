@@ -1,0 +1,288 @@
+# Set environment variable
+
+
+!apt-get update > /dev/null
+!apt-get install openjdk-8-jdk-headless -qq > /dev/null
+!wget -q https://downloads.apache.org/hadoop/common/hadoop-3.3.5/hadoop-3.3.5.tar.gz
+!tar -xzf hadoop-3.3.5.tar.gz
+
+
+!mv  hadoop-3.3.5/ /usr/local/
+
+import os
+os.environ["JAVA_HOME"] = "/usr/lib/jvm/java-8-openjdk-amd64"
+os.environ["HADOOP_HOME"] = "/usr/local/hadoop-3.3.5/"
+
+# Add hadoop bin to path
+
+current_path = os.getenv('PATH')
+new_path = current_path+':/usr/local/hadoop-3.3.5/bin/'
+os.environ["PATH"] = new_path
+!echo $PATH
+
+HIVE
+2.1 Download, Install HIVE
+
+
+!wget -q https://downloads.apache.org/hive/hive-3.1.3/apache-hive-3.1.3-bin.tar.gz
+!tar xzf apache-hive-3.1.3-bin.tar.gz
+
+## 2.2 Set Environment *Variables*
+
+os.environ["HIVE_HOME"] = "/content/apache-hive-3.1.3-bin"
+!echo $HIVE_HOME
+
+!echo $PATH
+current_path = os.getenv('PATH')
+new_path = current_path+':/content/apache-hive-3.1.3-bin/bin'
+os.environ["PATH"] = new_path
+!echo $PATH
+
+!echo $JAVA_HOME
+!echo $HADOOP_HOME
+!echo $HIVE_HOME
+
+2.3 Set up HDFS Directories
+
+
+!hdfs dfs -mkdir /tmp
+!hdfs dfs -chmod g+w /tmp
+#!hdfs dfs -ls /
+!hdfs dfs -mkdir -p /content/warehouse
+!hdfs dfs -chmod g+w /content/warehouse
+#!hdfs dfs -ls /content/
+
+**2.4 Initialise HIVE - note and fix errors**
+
+#2.4.1 Fix One Warning, One Error
+
+
+# locate multiple instances of slf4j ...
+!ls $HADOOP_HOME/share/hadoop/common/lib/*slf4j*
+!ls $HIVE_HOME/lib/*slf4j*
+
+!mv /content/apache-hive-3.1.3-bin/lib/log4j-slf4j-impl-2.17.1.jar ./
+
+# guava jar needs to above v 20
+# https://stackoverflow.com/questions/45247193/nosuchmethoderror-com-google-common-base-preconditions-checkargumentzljava-lan
+!ls $HIVE_HOME/lib/gu*
+
+# the one available with Hadoop is better, v 27
+!ls $HADOOP_HOME/share/hadoop/hdfs/lib/gu*
+
+# Remove the Hive Guava and replace with Hadoop Guava
+!mv $HIVE_HOME/lib/guava-19.0.jar ./
+
+!cp $HADOOP_HOME/share/hadoop/hdfs/lib/guava-27.0-jre.jar $HIVE_HOME/lib/
+
+**2.5 Initialize HIVE**
+
+!pip -q install colab-xterm
+%load_ext colabxterm
+
+%xterm
+
+#Type this command, dont copy-paste
+# Non printing characters inside the command will give totally illogical errors
+!schematool -initSchema -dbType derby
+
+!schematool -initSchema -dbType derby
+
+!hive -e "\
+create database if not exists praxisDB;\
+show databases;\
+"
+
+**Create A Table**
+
+
+#!hive -database praxisdb -e "\
+#create table if not exists emp2 (name string, age int);\
+#show tables;\
+#"
+
+**Insert Values to table**
+
+
+#!hive -database praxisdb -e "\
+#insert into emp2 values ('naren', 70);\
+#insert into emp2 values ('aditya', 49);\
+#"
+
+!hive -database praxisdb -e "\
+select * from emp2;\
+select * from emp2 where name = 'aditya';\
+"
+
+!hive -S -database praxisdb -e "select * from emp2 where name = 'aditya'"
+
+from google.colab import drive
+drive.mount('/content/drive')
+
+#!wget -q -O SS_Orders.csv '/content/drive/MyDrive/Colab Notebooks/SS_Orders.csv'
+#!head SS_Orders.csv
+
+!hive -S -database praxisDB -e "\
+drop table if exists ss_order;\
+CREATE TABLE IF NOT EXISTS ss_order (\
+    RowID smallint,\
+    OrderID char(14),OrderDate string,\
+    ShipDate string,ShipMode varchar(16),\
+    CustomerID char(8),CustomerName varchar(30),Segment varchar(20),\
+    Country varchar(30),City varchar(30),State varchar(30),PostalCode char(5),Region varchar(15) ,\
+    ProductID varchar(20), Category varchar(40), SubCategory varchar(40), ProductName varchar(200), \
+    Sales decimal(8,2), Quantity smallint, Discount decimal(4,2), Profit decimal(8,2) \
+) row format delimited fields terminated by ','; \
+describe ss_order;\
+"
+
+
+
+!hive -S -database praxisDB -e "\
+drop table if exists ss_order;\
+CREATE TABLE IF NOT EXISTS ss_order (\
+    RowID smallint,\
+    OrderID char(14),OrderDate string,\
+    ShipDate string,ShipMode varchar(16),\
+    CustomerID char(8),CustomerName varchar(30),Segment varchar(20),\
+    Country varchar(30),City varchar(30),State varchar(30),PostalCode char(5),Region varchar(15) ,\
+    ProductID varchar(20), Category varchar(40), SubCategory varchar(40), ProductName varchar(200), \
+    Sales decimal(8,2), Quantity smallint, Discount decimal(4,2), Profit decimal(8,2) \
+) row format delimited fields terminated by ','; \
+describe ss_order;\
+"
+
+!head SS_Orders.csv '/content/drive/My Drive/Colab Notebooks/SS_Orders.csv'
+
+!hive -database praxisdb -e "\
+CREATE TABLE IF NOT EXISTS employee (\
+ id int,\
+ name string,\
+ age int,\
+ gender string,\
+ salary decimal\
+) COMMENT 'Employee Table'\
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';\
+"
+
+!head records.csv '/content/records.csv'
+
+!sed 's/\r//' /content/records.csv > datafile1.csv
+
+#remove the CRLF character from the end of the row if it exists
+#!sed 's/[^a-zA-Z0-9,\/\.\-]/ /g' SS_Orders.csv > datafile.csv
+!sed 's/\r//' /content/records.csv > datafile1.csv
+#!sed 's/\r//' /content/eCommerce_02PC_2021.csv > datafile.csv
+# remove the first line containing headers from the file
+!sed -i -e "1d" datafile1.csv
+!head datafile1.csv
+
+!hive -S -database praxisdb -e "\
+TRUNCATE TABLE employee;\
+LOAD DATA LOCAL INPATH 'datafile1.csv' INTO TABLE employee;\
+"
+
+!hive -S -database praxisdb -e "\
+select count(*) from employee;\
+select * from employee limit 10;\
+"
+
+!hive -S -database praxisdb -e "\
+select salary,isnull(salary) from employee\
+where gender='M';\
+"
+
+!hive -S -database praxisdb -e "\
+CREATE TABLE IF NOT EXISTS zipcodes(\
+RecordNumber int,\
+Country string,\
+City string,\
+Zipcode int)\
+PARTITIONED BY(state string)\
+ROW FORMAT DELIMITED\
+FIELDS TERMINATED BY ',';\
+"
+
+!head records.csv '/zipcodes20.csv'
+
+!hive -S -database praxisdb -e "\
+DESCRIBE zipcodes;\
+"
+
+!sed 's/\r//' /zipcodes20.csv > datafile2.csv
+
+!hive -S -database praxisdb -e "\
+TRUNCATE TABLE zipcodes;\
+LOAD DATA LOCAL INPATH 'datafile2.csv' INTO TABLE zipcodes;\
+"
+
+!hive -S -database praxisdb -e "\
+show PARTITIONS zipcodes;\
+"
+
+!hive -S -database praxisdb -e "\
+DESCRIBE FORMATTED zipcodes;\
+"
+
+!head records.csv '/content/sample_data/zipcodes.csv'
+
+!sed 's/\r//' /content/sample_data/zipcodes.csv> datafile1.csv
+
+!hive -S -database praxisdb -e "\
+TRUNCATE TABLE zipcodes;\
+LOAD DATA LOCAL INPATH 'datafile1.csv' INTO TABLE zipcodes;\
+"
+
+!hive -S -database praxisdb -e "\
+show PARTITIONS zipcodes;\
+"
+
+
+
+!hive -S -database praxisdb -e "\
+select count(*) from ss_order;\
+select * from ss_order limit 10;\
+"
+
+!hive -S -database praxisdb -e "\
+select count(*) from ss_order;\
+"
+
+!hive -S -database praxisdb -e "\
+SELECT segment, SUM (sales) sales \
+FROM ss_order \
+GROUP BY segment; \
+"
+
+## Introducing SERDE
+
+
+!hive -S -database praxisDB -e "\
+drop table if exists ss_order2;\
+CREATE TABLE IF NOT EXISTS ss_order2 (\
+    RowID smallint,\
+    OrderID char(14),OrderDate string,\
+    ShipDate string,ShipMode varchar(16),\
+    CustomerID char(8),CustomerName varchar(30),Segment varchar(20),\
+    Country varchar(30),City varchar(30),State varchar(30),PostalCode char(5),Region varchar(15) ,\
+    ProductID varchar(20), Category varchar(40), SubCategory varchar(40), ProductName varchar(200), \
+    Sales decimal(8,2), Quantity smallint, Discount decimal(4,2), Profit decimal(8,2) \
+) ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde' STORED AS TEXTFILE; \
+"
+
+!hive -S -database praxisdb -e "\
+TRUNCATE TABLE ss_order2;\
+LOAD DATA LOCAL INPATH 'datafile.csv' INTO TABLE ss_order2;\
+"
+
+!hive -S -database praxisdb -e "\
+SELECT segment, SUM (sales) sales \
+FROM ss_order2 \
+GROUP BY segment; \
+"
+
+!hive -S -database praxisdb -e "\
+SELECT segment, region, category, round(SUM (sales),2) sales \
+FROM ss_order2 \
+GROUP BY segment, region, category; \
+"
