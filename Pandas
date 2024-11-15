@@ -1,0 +1,159 @@
+Q-1: Import the bestsellers.csv dataset and use it to answer the following questions: 
+Ans-1    Code:    import pandas as pd
+seller = pd.read_csv('bestsellers.csv')
+print(seller)
+Output:
+ 
+• Find the lowest User Rating in the DF 
+Code :   df = pd.DataFrame(seller)
+column_name = "User Rating"
+min_value = df['User Rating'].min()
+#max_value = df[column_name].max()
+print(f"Minimum value in '{'User Rating'}' column: {min_value}")
+Output:
+ 
+• Find the highest Price in the DF 
+	Code:    df = pd.DataFrame(seller)
+column_name = "Price"
+max_value = df['Price'].max()
+print(f"Maximum value in '{'Price'}' column: {max_value}") 
+	Output:
+ 
+• What is the average User Rating? 
+	Code: df = pd.DataFrame(seller)
+column_name = "User Rating"
+mean_value = df['User Rating'].mean()
+print(f"Average {'User Rating'} is {mean_value}")
+	Output:
+	 
+• What the average User Rating of the first 5 rows? 
+	Code:    df = pd.DataFrame(seller)
+column_name = "User Rating"
+avg_value = df['User Rating'].head(5).mean()
+print(f"Average {'User Rating'} of first 5 rows is {avg_value}")
+	Output:
+	 
+• What User Rating score appeared the most? 
+	Code: 	df = pd.DataFrame(seller)
+column_name = "User Rating"
+mode_value = df['User Rating'].mode()
+print(f" {'User Rating'} score that appeared the most is {mode_value}")
+	Output:
+	 
+• What is the total (sum) of all the values in the Reviews column? 
+	Code: 	df = pd.DataFrame(seller)
+column_name = "Reviews"
+sum_value = df['Reviews'].sum()
+print(f" Sum of all the value in the {'Reviews'} column is {sum_value}")
+	Output:
+	 
+• How many different authors are featured in the dataset? 
+	Code: 	df = pd.DataFrame(seller)
+column_name = "Author"
+unique_value = df['Author'].unique()
+print(f" DIfferent authors in the dataframe are {unique_value}")
+	Output:
+	 
+ 
+• Which author wrote the most number of books on the list? How many did they write? 
+	Code:	 author_column = "Author"
+book_title_column = "Name"
+grouped_by_author = df.groupby(author_column)[book_title_column].count()
+# Find the author with the most books
+most_prolific_author = grouped_by_author.idxmax()
+# Find the number of books written by the most prolific author
+number_of_books = grouped_by_author.max()
+print(f"The author who wrote the most books is {most_prolific_author} with {number_of_books} books.")
+	Output:
+	 
+
+Q-2: Work with the bestsellers.csv dataset to answer the following questions: 
+	Code:    import pandas as pd
+seller = pd.read_csv('bestsellers.csv')
+print(seller)
+Output:
+ 
+
+• Retrieve a series that contains the book Names 
+	Code: 	book_names = df['Name']
+print(book_names)
+print(type(book_names))
+	Output:
+	 
+• Retrieve a series that contains the User Ratings 
+	Code:	 Rating = df['User Rating']
+print(Rating)
+print(type(Rating))
+	Output:
+	 
+• Retrieve the first 8 Authors
+	Code:	 top = df['Author'].head(8)
+print(f"The first 8 authors are \n {top}")
+	Output: 
+	 
+• Find the unique Genres
+	Code:	 unique_value = df['Genre'].unique()
+print(f" Different Genre are {unique_value}")
+	Output: 
+	 
+• Find the number of unique Authors
+	Code: 	unique_value = df['Author'].nunique()
+print(f" Number of unique authors are {unique_value}")
+	Output: 
+	  
+• Find the average Price
+	Code: 	avg = df['Price'].mean()
+print(f"Average price is {avg}")
+	Output: 
+	 
+• Find the 10 highest prices
+	Code: 	highest = df['Price'].nlargest(10,'first')
+print(f"The 10 highest prices are \n {highest}")
+	Output: 
+	 
+• Find the top 3 most common book titles in the dataset
+	Code: 	top_3_titles = df['Name'].value_counts().nlargest(3)
+print(f"The top 3 most common book titles in the dataset are \n {top_3_titles}")
+	Output: 
+	 
+• Create a new dataframe with only Author and User Rating.
+	Code:	 data = df[['Author','User Rating']]
+print(data)
+	Output:
+	  
+• Using the new dataframe, find the most common combination of Author and User Review Score. 
+Code: 
+most_common_combinationdf.groupby(["Author","Reviews"]).size().sort_values(ascending=False).index[0]
+print(most_common_combination)
+	Output:
+	 
+• Create a pie chart showing the total number of times each Genre appears in the dataset. 
+	Code: 	import matplotlib.pyplot as plt
+genre_counts = df["Genre"].value_counts()
+plt.pie(genre_counts.values, labels=genre_counts.index, autopct="%1.1f%%")
+plt.title("Distribution of Genres in the Dataset")
+plt.show()
+	Output:
+	 
+• Find out the top 10 most prolific authors and plot their number of books as a bar plot 
+	Code:	 top_authors = df['Author'].value_counts().head(10)
+plt.figure(figsize=(10, 6))
+top_authors.plot(kind='bar')
+plt.xlabel('Author')
+plt.ylabel('Number of Books')
+plt.title('Top 10 Most Prolific Authors')
+plt.show()
+	Output:
+	 
+• BONUS: create a histogram showing the distribution of user review scores
+	Code: 	plt.figure(figsize=(8, 6))
+plt.hist(df['Reviews'], bins=10, edgecolor='black')
+plt.xlabel('Review Score')
+plt.ylabel('Frequency')
+plt.title('Distribution of User Review Scores')
+plt.grid(True)
+plt.show()
+	Output:
+  
+	
+
